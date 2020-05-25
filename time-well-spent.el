@@ -9,7 +9,7 @@
         'completed nil            ; t or nil
         'created nil              ; a time like (curren-time)
         'last-touched nil         ; nil or a time like (current-time)
-        'status 'in-the-future    ; 'in-the-future, 'on-the-move or '(waiting "description")
+        'status 'in-the-future    ; 'in-the-future, 'on-the-move or 'waiting
         'id nil))
 
 (defun tws-accessor-forms (prop)
@@ -25,7 +25,7 @@
 (def-tws-accessors goal category time estimate completed created last-touched status id)
 
 (defun tws-waiting-on (entry reason)
-  (setf (tws-status entry) (list 'waiting reason)))
+  (setf (tws-status entry) 'waiting))
 
 (defun tws-make-on-the-move (entry)
   (setf (tws-status entry) 'on-the-move))
@@ -41,13 +41,14 @@
         (+ (tws-time entry)
            secs)))
 
-(defvar *tws-on-the-move-str* "🚀")
-(defvar *tws-in-the-future-str* "🤔")
-(defvar *tws-waiting-str* "⏳")
+(defvar *tws-on-the-move-str* "DO")
+(defvar *tws-in-the-future-str* "FU")
+(defvar *tws-waiting-str* "WA")
 
-(defvar *tws-entry-format-string* "%-35s | %-25s %s %s est %d Hrs | %s %s"
+
+(defvar *tws-entry-format-string* "[%s] %35s -- %-25s (≅ %-4s Hrs) %s %s %s" 
   "Shoots for 90 Charcters wide. Its format is
-  COMPLETE GOAL CATEGORY STATUS FRESHNESS ESTIMATE SPENT
+   GOAL CATEGORY  ESTIMATE STATUS FRESHNESS SPENT COMPLETE
 
   COMPLETE is either ✓ or is blank.
   STATUS is one of 🚀, 🤔, ⏳
@@ -55,17 +56,17 @@
   SPENT is HH:MM
 ")
 
-(setq *tws-entry-format-string* "%-35s -- %25s (≅ %-4d Hrs) %s %s %s %s")
+
 
 (defun tws-status-icon (entry)
   (case (tws-status entry)
     ('on-the-move *tws-on-the-move-str*)
     ('in-the-future *tws-in-the-future-str*)
-    (t *tws-waiting-str*)))
+    ('waiting *tws-waiting-str*)))
 
 (defun tws-freshness-icon (entry)
   ;; TODO
-  "👨")
+  "FR")
 
 (defun tws-time-to-hh-mm (secs)
   (format "%02d:%02d"
@@ -74,13 +75,14 @@
 
 (defun tws-entry-to-string (entry)
   (format *tws-entry-format-string*
+          (if (tws-completed entry)  "✓" " ")
           (truncate-string-to-width (tws-goal entry) 35)
           (truncate-string-to-width (tws-category entry) 25)
           (truncate  (tws-estimate entry))
           (tws-status-icon entry)
           (tws-freshness-icon entry)
           (tws-time-to-hh-mm (tws-time entry))
-          (if (tws-completed entry)  "✓" " ")))
+          ))
 
 ;;; Utilities
 (defun tws-print-to-file (file form)
@@ -181,6 +183,8 @@ structure of the DB."
   (- (float-time (curren-time))
      (* days 24 60 60)))
 
+(defun tws-not (pred)
+  (lambda (entry) (not (funcall pred entry))))
 
 ;;; Functions for Interacting with The Global Database 
 (defvar *tws-db-file* "~/.time-well-spent"
@@ -209,6 +213,7 @@ structure of the DB."
   ;; then push it to into the db
   (tws-raw-insert-entry-into-db entry *tws-db*))
 
+
 ;;; Timers 
 
 (defvar *tws-idle-timeout* (* 7 60))
@@ -223,11 +228,51 @@ structure of the DB."
 
 ;;; TWS Buffer & Commands
 
-(defvar *tws-buffer-table* nil
-  "Rebound whenever the TWS buffer is rendered. Used to lookup tasks by line number")
+(defvar *tws-buffer-name* "*Time Well Spent*")
 
+(defvar *tws-displayed-entries* nil
+  "List of entries currently being displayed.")
+
+(defvar *tws-show-complete-also* nil)
+(defvar *tws-show-future* t)
+(defvar *tws-show-category* nil)
+
+(defun tws-true (entry) t)
+
+(defun tws-build-filter ()
+  (let ((filter #'tws-true))
+    (when *tws-show-category*
+      (setq filter (tws-and filter (tws-query 'equal 'tws-category *tws-show-category*))))
+    (unless *tws-show-future*
+      (setq filter (tws-and filter (tws-not (tws-query 'equal 'tws-status 'in-the-future)))))
+    (unless *tws-show-complete-also*
+      (setq filter (tws-and filter (tws-query 'eql 'tws-completed nil))))
+    filter))
+
+(defun tws-refresh-buffer ()
+  (interactive)
+  (setq *tws-displayed-entries*
+        (tws-run-query (tws-build-filter) *tws-db*))
+  (with-output-to-temp-buffer *tws-buffer-name*
+    (with-current-buffer *tws-buffer-name*
+
+      (dolist (entry *tws-displayed-entries*)
+        (princ (tws-entry-to-string entry))
+        (terpri))
+
+      (read-only-mode)
+      
+      )))
 
 (defun entry-on-line ())
+
+
+
+(defun tws-filter-by-category (category)
+  (interactive
+   (list (completing-read "Category: " (tws-categories *tws-db*))))
+  (setq *tws-category-filter* category)
+  (tws-refresh-buffer))
 
 (defun tws-create-entry (category goal estimated)
   (interactive
