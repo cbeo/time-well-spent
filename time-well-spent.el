@@ -1,5 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
+(require 'notifications)
+
 ;;; Entry Data Structure and Accessors
 (defun tws-make-entry (goal category &optional estimate)
   (list 'goal goal
@@ -91,7 +93,7 @@
 ;;; Utilities
 (defun tws-print-to-file (file form)
   (with-temp-buffer
-    (prin1 forms (current-buffer))
+    (prin1 form (current-buffer))
     (write-file file)))
 
 (defun tws-read-from-file (file)
@@ -214,7 +216,8 @@ structure of the DB."
 
 (defun tws-load-db ()
   (setq *tws-db*
-        (tws-read-from-file *tws-db-file*)))
+        (if (file-exists-p *tws-db-file*) (tws-read-from-file *tws-db-file*)
+          (tws-make-fresh-db))))
 
 (defun tws-add-entry (entry)
   ;; if the entry has an id, remove any entrys in the db with the same
@@ -229,14 +232,26 @@ structure of the DB."
 ;;; Timers 
 
 (defvar *tws-idle-timeout* (* 7 60))
+(defvar *tws-idle-timer-handle* nil)
 
 (defun tws-stop-idle-timer ()
-  ;; TODO
-  )
+  (when *tws-idle-timer-handle*
+    (cancel-timer *tws-idle-timer-handle*)
+    (setq *tws-idle-timer-handle* nil)))
 
 (defun tws-start-idle-timer ()
-  ;; TODO
-  )
+  (setq *tws-idle-timer-handle*
+        (run-with-idle-timer *tws-idle-timeout*
+                             nil
+                             'tws-notify-and-stop)))
+
+(defun tws-notify-and-stop ()
+  (tws-stop-working *tws-db*)
+  (tws-save-db)
+  (tws-stop-idle-timer)
+  (notifications-notify :title "Time Well Spent"
+                        :body "Tracking Has Stopped Due to Idleness"
+                        :timeout 0))
 
 ;;; TWS Buffer & Commands
 
@@ -316,8 +331,26 @@ structure of the DB."
       (local-set-key (kbd "D") 'tws-show-default)
       (local-set-key (kbd "m") 'tws-toggle-mark-complete-on-line)
       (local-set-key (kbd "f") 'tws-put-into-future-on-line)
+      (local-set-key (kbd "w") 'tws-mark-waiting-on-line)
+      (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
       (switch-to-buffer *tws-buffer-name*)
       )))
+
+(defun tws-mark-waiting-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (tws-mark-incomplete entry)
+      (tws-waiting-on entry "ignore")
+      (tws-refresh-buffer))))
+
+(defun tws-mark-on-the-move-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (tws-mark-incomplete entry)
+      (tws-make-on-the-move entry)
+      (tws-refresh-buffer))))
 
 (defun tws-put-into-future-on-line ()
   (interactive)
@@ -368,7 +401,8 @@ the *tws-displayed-entries* list."
 (defun tws-stop ()
   (interactive)
   (tws-stop-idle-timer)
-  (tws-stop-working *tws-db*))
+  (tws-stop-working *tws-db*)
+  (tws-save-db))
 
 (defun tws-toggle-on-goal-at-line ()
   (interactive)
@@ -377,9 +411,17 @@ the *tws-displayed-entries* list."
       (if (tws-currently-working-on-p *tws-db* (tws-id entry-on-line))
           (tws-stop)
         (progn
+          (tws-stop)
           (tws-work-on *tws-db* entry-on-line)
           (tws-start-idle-timer)))
       (tws-refresh-buffer))))
+
+
+(defun time-well-spent ()
+  (interactive)
+  (unless *tws-db*
+    (tws-load-db))
+  (tws-refresh-buffer))
 
 
 
