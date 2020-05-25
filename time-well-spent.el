@@ -189,7 +189,7 @@ structure of the DB."
       (rec preds))))
 
 (defun tws-days-ago (days)
-  (- (float-time (curren-time))
+  (- (float-time (current-time))
      (* days 24 60 60)))
 
 (defun tws-not (pred)
@@ -271,17 +271,12 @@ structure of the DB."
     (unless *tws-show-future*
       (setq filter (tws-and filter (tws-not (tws-query 'equal 'tws-status 'in-the-future)))))
     (unless *tws-show-complete-also*
-      (setq filter (tws-and filter (tws-query 'eql 'tws-completed nil))))
+      (setq filter (tws-and filter (tws-query 'equal 'tws-completed nil))))
     filter))
 
 (defun tws-entry-compare (e1 e2)
-  (let ((touched1 (tws-last-touched e1))
-        (touched2 (tws-last-touched e2)))
-    (cond ((and touched1 touched2)
-           (> touched1 touched2))
-          (e1 t)
-          (e2 nil)
-          (t nil))))
+  t)
+
 
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
@@ -346,8 +341,17 @@ structure of the DB."
       (local-set-key (kbd "f") 'tws-put-into-future-on-line)
       (local-set-key (kbd "w") 'tws-mark-waiting-on-line)
       (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
+      (local-set-key (kbd "l") 'tws-log-to-entry-on-line)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-log-to-entry-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (push (list (current-time) (read-string "Log Thought: "))
+            (tws-log entry))
+      (tws-save-db))))
 
 (defun tws-mark-waiting-on-line ()
   (interactive)
