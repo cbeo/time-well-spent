@@ -226,7 +226,7 @@ structure of the DB."
 
 ;;; Timers 
 
-(defvar *tws-idle-timeout* (* 7 60))
+(defvar *tws-idle-timeout* (* 5 60))
 (defvar *tws-idle-timer-handle* nil)
 
 (defun tws-stop-idle-timer ()
@@ -246,7 +246,8 @@ structure of the DB."
   (tws-stop-idle-timer)
   (notifications-notify :title "Time Well Spent"
                         :body "Tracking Has Stopped Due to Idleness"
-                        :timeout 0))
+                        :timeout 0)
+  (tws-refresh-buffer))
 
 ;;; TWS Buffer & Commands
 
