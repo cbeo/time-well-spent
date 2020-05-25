@@ -107,7 +107,7 @@
   (list
    0       ; the next entry id
    ()      ; the entries
-   nil     ; the working entry, nil or (start-time . entry-id) 
+   nil     ; the working entry, nil or (start-time . entry-id)
    ))
 
 (defun tws-new-entry-id (db)
@@ -170,10 +170,15 @@ structure of the DB."
 (defun tws-run-query (pred db)
   (remove-if-not pred (tws-db-entries db)))
 
+(defun tws-categories-and-times (db)
+  (let ((tab (make-hash-table :test 'equal)))
+    (dolist (entry (tws-db-entries db))
+      (incf (gethash (tws-category entry) tab 0) (tws-time entry)))
+    tab))
+
 (defun tws-categories (db)
-  (let ((result nil))
-    (dolist (entry (tws-db-entries db) result)
-      (pushnew (tws-category entry) result :test #'equal))))
+  (hash-table-keys (tws-categories-and-times db)))
+
 
 ;;; Utilities for building queries
 
@@ -274,14 +279,35 @@ structure of the DB."
       (setq filter (tws-and filter (tws-query 'equal 'tws-completed nil))))
     filter))
 
-(defun tws-entry-compare (e1 e2)
-  t)
-
 
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
-  (setq entries (sort entries 'tws-entry-compare))
-  entries)
+  (let ((cats (tws-categories-and-times *tws-db*)))
+    (labels ((same-cat-p (a b)
+                         (equal (tws-category a) (tws-category b)))
+
+             (active-p (a)
+                       (and (not (tws-completed a))
+                            (equal 'on-the-move (tws-status a))))
+
+             (both-active (a b) (and (active-p a) (active-p b)))
+             
+             (cat-lt-p (a b)
+                       (< (gethash (tws-category a) cats 0)
+                          (gethash (tws-category b) cats 0)))
+
+             (more-worked-p (a b)
+                            (> (tws-time a) (tws-time b)))
+
+             (most-in-least (a b)
+                            (cond ((both-active a b)
+                                   (if (same-cat-p a b) (more-worked-p a b)
+                                     (cat-lt-p a b)))
+                                  ((active-p a) t)
+                                  (t nil))))
+      (setq entries
+            (sort entries (lambda (a b) (most-in-least a b))))
+      entries)))
 
 (defun tws-toggle-future-goals ()
   (interactive)
