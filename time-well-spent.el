@@ -81,7 +81,6 @@
 
 (defun tws-entry-to-string (entry &optional working-p)
   (format *tws-entry-format-string*
-          
           (truncate-string-to-width (tws-goal entry) 35)
           (truncate-string-to-width (tws-category entry) 25)
           (truncate  (tws-estimate entry))
@@ -97,10 +96,10 @@
     (write-file file)))
 
 (defun tws-read-from-file (file)
-  (read-from-string
-   (with-temp-buffer
-     (insert-file-contents file)
-     (buffer-string))))
+  (car (read-from-string
+        (with-temp-buffer
+          (insert-file-contents file)
+          (buffer-string)))))
 
 ;;; Database Abstraction
 (defun tws-make-fresh-db ()
@@ -183,15 +182,11 @@ structure of the DB."
 
 (defun tws-and (&rest preds)
   (lambda (entry)
-    (dolist (pred preds t)
-      (unless (funcall pred entry)
-        (return nil)))))
-
-(defun tws-or (&rest preds)
-  (lambda (entry)
-    (dolist (pred preds nil)
-      (when (funcall pred entry)
-        (return t)))))
+    (labels ((rec (preds)
+                  (if (not preds) t
+                    (and (funcall (car preds) entry)
+                         (rec (cdr preds))))))
+      (rec preds))))
 
 (defun tws-days-ago (days)
   (- (float-time (curren-time))
@@ -266,10 +261,10 @@ structure of the DB."
 
 
 
-(defun tws-true (entry) t)
+;(defun tws-true (entry) t)
 
 (defun tws-build-filter ()
-  (let ((filter #'tws-true))
+  (let ((filter (lambda (entry) t)))
     (when *tws-show-category*
       (setq filter (tws-and filter (tws-query 'equal 'tws-category *tws-show-category*))))
     (unless *tws-show-future*
