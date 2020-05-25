@@ -300,8 +300,11 @@ structure of the DB."
 
 (define-derived-mode time-well-spent-mode fundamental-mode "tws")
 
+(defvar *tws-last-known-point* 0)
+
 (defun tws-refresh-buffer ()
   (interactive)
+  (setq *tws-last-known-point* (point))
   (setq *tws-displayed-entries*
         (tws-run-query (tws-build-filter) *tws-db*))
   (with-output-to-temp-buffer *tws-buffer-name*
@@ -329,8 +332,8 @@ structure of the DB."
       (local-set-key (kbd "f") 'tws-put-into-future-on-line)
       (local-set-key (kbd "w") 'tws-mark-waiting-on-line)
       (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
-      (switch-to-buffer *tws-buffer-name*)
-      )))
+      (switch-to-buffer *tws-buffer-name*)))
+  (goto-char *tws-last-known-point*))
 
 (defun tws-mark-waiting-on-line ()
   (interactive)
