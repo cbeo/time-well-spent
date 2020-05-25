@@ -274,6 +274,20 @@ structure of the DB."
       (setq filter (tws-and filter (tws-query 'eql 'tws-completed nil))))
     filter))
 
+(defun tws-entry-compare (e1 e2)
+  (let ((touched1 (tws-last-touched e1))
+        (touched2 (tws-last-touched e2)))
+    (cond ((and touched1 touched2)
+           (> touched1 touched2))
+          (e1 t)
+          (e2 nil)
+          (t nil))))
+
+(defun tws-sort (entries)
+  "Sorts entries in 'barski' order"
+  (setq entries (sort entries 'tws-entry-compare))
+  entries)
+
 (defun tws-toggle-future-goals ()
   (interactive)
   (setq *tws-show-future* (not *tws-show-future*))
@@ -306,7 +320,7 @@ structure of the DB."
   (interactive)
   (setq *tws-last-known-point* (point))
   (setq *tws-displayed-entries*
-        (tws-run-query (tws-build-filter) *tws-db*))
+        (tws-sort (copy-sequence (tws-run-query (tws-build-filter) *tws-db*))))
   (with-output-to-temp-buffer *tws-buffer-name*
     (with-current-buffer *tws-buffer-name*
       (time-well-spent-mode)
