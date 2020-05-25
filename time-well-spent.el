@@ -299,12 +299,16 @@ structure of the DB."
              (more-worked-p (a b)
                             (> (tws-time a) (tws-time b)))
 
+             (waiting-before-future-p (a b)
+                                      (equal 'waiting (tws-status a)))
+
              (most-in-least (a b)
                             (cond ((both-active a b)
                                    (if (same-cat-p a b) (more-worked-p a b)
                                      (cat-lt-p a b)))
                                   ((active-p a) t)
-                                  (t nil))))
+                                  ((active-p b) nil)
+                                  (t (waiting-before-future-p a b)))))
       (setq entries
             (sort entries (lambda (a b) (most-in-least a b))))
       entries)))
