@@ -373,8 +373,42 @@ structure of the DB."
       (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
       (local-set-key (kbd "l") 'tws-log-to-entry-on-line)
       (local-set-key (kbd "R") 'tws-category-report)
+      (local-set-key (kbd "v") 'tws-view-entry-on-line)
+      (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-kill-current-buffer ()
+  (interactive)
+  (kill-buffer (current-buffer)))
+
+(defvar *tws-view-entry-buffer-name* "Time Well Spent: Entry View")
+
+(defun tws-view-entry-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (with-output-to-temp-buffer *tws-view-entry-buffer-name*
+        (with-current-buffer *tws-view-entry-buffer-name*
+          (time-well-spent-mode)
+          (newline)
+          (princ (string-trim (tws-entry-to-string entry)))
+          (newline) (newline)
+          (princ (format "Created: %s" (current-time-string (tws-created entry))))
+          (terpri)
+          (princ (format "Last Touched: %s" (current-time-string (tws-last-touched entry))))
+          (newline) (newline)
+          (when (tws-log entry)
+            (princ "LOG")
+            (terpri)
+            (dolist (lentry (tws-log entry))
+              (princ (format "%s -- %s"
+                             (current-time-string (first lentry))
+                             (second lentry)))
+              (terpri)))
+          (local-set-key (kbd "q") 'tws-kill-current-buffer)
+          (read-only-mode)))
+      (switch-to-buffer-other-window *tws-view-entry-buffer-name*))))
 
 (defun tws-category-report ()
   (interactive)
@@ -388,7 +422,8 @@ structure of the DB."
         (princ (format "%25s -- %s"
                        key
                        (tws-time-to-hh-mm (gethash key cats 0))))
-        (terpri)))))
+        (terpri)))
+    (switch-to-buffer-other-window "Time Well Spent: Report")))
 
 (defun tws-log-to-entry-on-line ()
   (interactive)
