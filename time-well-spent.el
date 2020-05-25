@@ -54,9 +54,9 @@
 (defvar *tws-in-progress-icon* "🚧")
 (defvar *tws-goal-reached-icon* "☑")
 
-(defvar *tws-entry-format-string* "[%s] %35s -- %-25s (≅ %-4s Hrs) %s %s" 
+(defvar *tws-entry-format-string* "%35s -- %-25s (≅ %-4s Hrs) %s %s %s" 
   "Shoots for 90 Charcters wide. Its format is
-   COMPLETE GOAL CATEGORY ESTIMATE STATUS SPENT
+   GOAL CATEGORY ESTIMATE STATUS SPENT COMPLETE
 
   COMPLETE is either ✓ or 🚧 or is blank.
   STATUS is one of 🚀, 🤔, ⏳
@@ -79,14 +79,14 @@
 
 (defun tws-entry-to-string (entry &optional working-p)
   (format *tws-entry-format-string*
-          (if working-p *tws-in-progress-icon*
-            (if (tws-completed entry)  *tws-goal-reached-icon* " "))
+          
           (truncate-string-to-width (tws-goal entry) 35)
           (truncate-string-to-width (tws-category entry) 25)
           (truncate  (tws-estimate entry))
           (tws-status-icon entry)
           (tws-time-to-hh-mm (tws-time entry))
-          ))
+          (if working-p *tws-in-progress-icon*
+            (if (tws-completed entry)  *tws-goal-reached-icon* " "))))
 
 ;;; Utilities
 (defun tws-print-to-file (file form)
@@ -151,6 +151,7 @@ corresponding entry's new time."
   ;; add the new working entry and record its time
   (tws-make-on-the-move entry)
   (tws-mark-incomplete entry)
+  (tws-touch-entry entry)
   (setf (third db) (cons (current-time) (tws-id entry))))
 
 (defun tws-raw-insert-entry-into-db (entry db)
@@ -295,7 +296,7 @@ structure of the DB."
   (with-output-to-temp-buffer *tws-buffer-name*
     (with-current-buffer *tws-buffer-name*
       (time-well-spent-mode)
-
+      (hl-line-mode)
       (dolist (entry *tws-displayed-entries*)
         (princ (tws-entry-to-string entry
                                     (tws-currently-working-on-p
@@ -313,8 +314,28 @@ structure of the DB."
       (local-set-key (kbd "C") 'tws-toggle-completed-goals)
       (local-set-key (kbd "F") 'tws-toggle-future-goals)
       (local-set-key (kbd "D") 'tws-show-default)
+      (local-set-key (kbd "m") 'tws-toggle-mark-complete-on-line)
+      (local-set-key (kbd "f") 'tws-put-into-future-on-line)
       (switch-to-buffer *tws-buffer-name*)
       )))
+
+(defun tws-put-into-future-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (tws-make-in-the-future entry)
+      (tws-mark-incomplete entry)
+      (tws-refresh-buffer))))
+
+(defun tws-toggle-mark-complete-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (setf (tws-completed entry)
+            (not (tws-completed entry)))
+      (if (tws-completed entry)
+          (tws-make-on-the-move entry))
+      (tws-refresh-buffer))))
 
 (defun tws-line-number-to-index (n)
   "Translates a line number from the TWS Buffer to an index into
