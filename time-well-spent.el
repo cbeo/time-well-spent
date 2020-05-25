@@ -372,8 +372,23 @@ structure of the DB."
       (local-set-key (kbd "w") 'tws-mark-waiting-on-line)
       (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
       (local-set-key (kbd "l") 'tws-log-to-entry-on-line)
+      (local-set-key (kbd "R") 'tws-category-report)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-category-report ()
+  (interactive)
+  (let ((cats (tws-categories-and-times *tws-db*)))
+    (with-output-to-temp-buffer "Time Well Spent: Report"
+      (princ "   TIME WELL SPENT : CATEGORY REPORT")
+      (terpri)
+      (princ "----------------------------------------")
+      (terpri)
+      (dolist (key (hash-table-keys cats))
+        (princ (format "%25s -- %s"
+                       key
+                       (tws-time-to-hh-mm (gethash key cats 0))))
+        (terpri)))))
 
 (defun tws-log-to-entry-on-line ()
   (interactive)
