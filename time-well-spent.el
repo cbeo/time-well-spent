@@ -469,7 +469,7 @@ structure of the DB."
       (terpri)
       (princ "a        : Add time to highlighted entry")
       (terpri)
-      (princ "q        : quit")
+      (princ "q        : close the Time Well Spent buffer (will continue tracking)")
       (terpri)
       (princ "?        : show the help")
       (terpri)
