@@ -242,7 +242,7 @@ structure of the DB."
 (defun tws-start-idle-timer ()
   (setq *tws-idle-timer-handle*
         (run-with-idle-timer *tws-idle-timeout*
-                             nil
+                             t
                              'tws-notify-and-stop)))
 
 (defun tws-notify-and-stop ()
