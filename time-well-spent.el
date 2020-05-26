@@ -531,10 +531,16 @@ categories, in the past DAYS-BACK days"
       (terpri)
       (princ "----------------------------------------")
       (terpri)
-      (dolist (key (hash-table-keys cats))
-        (princ (format "%25s -- %s"
-                       key
-                       (tws-time-to-hh-mm (gethash key cats 0))))
+      (let ((total 0))
+        (dolist (key (hash-table-keys cats))
+          (princ (format "%25s -- %s"
+                         key
+                         (tws-time-to-hh-mm (gethash key cats 0))))
+          (terpri)
+          (incf total (gethash key cats 0)))
+        (princ "----------------------------------------")
+        (terpri)
+        (princ (format "%25s -- %s" "TOTAL" (tws-time-to-hh-mm total)))
         (terpri)))
     (switch-to-buffer-other-window "Time Well Spent: Report")))
 
