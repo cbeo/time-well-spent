@@ -170,9 +170,11 @@ structure of the DB."
 (defun tws-run-query (pred db)
   (remove-if-not pred (tws-db-entries db)))
 
-(defun tws-categories-and-times (db)
+(defun tws-categories-and-times (db &optional entries-p)
+  "Supply DB is either a db instance or is a list of entires. If
+it is a list of entries, you must supply non-nill for ENTRIES-P."
   (let ((tab (make-hash-table :test 'equal)))
-    (dolist (entry (tws-db-entries db))
+    (dolist (entry (if entries-p db  (tws-db-entries db)))
       (incf (gethash (tws-category entry) tab 0) (tws-time entry)))
     tab))
 
@@ -509,9 +511,21 @@ structure of the DB."
           (read-only-mode)))
       (switch-to-buffer-other-window *tws-view-entry-buffer-name*))))
 
-(defun tws-category-report ()
-  (interactive)
-  (let ((cats (tws-categories-and-times *tws-db*)))
+(defun tws-category-report (days-back)
+  "Show a report of how much time has been spent on which
+categories, in the past DAYS-BACK days"
+  (interactive (list (read-number "Days Back To Start From (0 = all time): " 0)))
+  (let ((cats
+         (if (plusp days-back)
+             (tws-categories-and-times
+              (tws-run-query
+               (tws-not
+                (tws-query 'time-less-p
+                           'tws-last-touched
+                           (tws-days-ago days-back)))
+               *tws-db*)
+              t)
+           (tws-categories-and-times  *tws-db*))))
     (with-output-to-temp-buffer "Time Well Spent: Report"
       (princ "   TIME WELL SPENT : CATEGORY REPORT")
       (terpri)
