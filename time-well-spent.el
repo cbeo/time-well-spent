@@ -382,8 +382,18 @@ structure of the DB."
       (local-set-key (kbd "v") 'tws-view-entry-on-line)
       (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (local-set-key (kbd "?") 'tws-help-buffer)
+      (local-set-key (kbd "a") 'tws-add-time)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-add-time ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (incf (tws-time entry)
+            (* 3600 (read-number "Add Hours: ")))
+      (tws-save-db)
+      (tws-refresh-buffer))))
 
 (defun tws-rename-entry ()
   (interactive)
