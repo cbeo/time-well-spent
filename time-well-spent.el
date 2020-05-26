@@ -467,6 +467,8 @@ structure of the DB."
       (terpri)
       (princ "v        : View the detail of the highlighted entry")
       (terpri)
+      (princ "a        : Add time to highlighted entry")
+      (terpri)
       (princ "q        : quit")
       (terpri)
       (princ "?        : show the help")
