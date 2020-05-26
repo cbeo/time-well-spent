@@ -502,6 +502,11 @@ structure of the DB."
     (when entry
       (tws-mark-incomplete entry)
       (tws-waiting-on entry "ignore")
+      (push (list (current-time)
+                  (concat "(Waiting) "
+                          (read-string "Reason for Wait: ")))
+            (tws-log entry))
+      (tws-save-db)
       (tws-refresh-buffer))))
 
 (defun tws-mark-on-the-move-on-line ()
