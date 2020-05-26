@@ -1,5 +1,6 @@
 
-Super duper double alpha none-release version of a task tracker for emacs.
+Super duper double alpha non-release use-at-your-own-risk version of a
+task tracker for emacs.
 
 Categorize goals, track time spent on them, generate reports by
 category.
