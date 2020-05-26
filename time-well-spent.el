@@ -377,11 +377,31 @@ structure of the DB."
       (local-set-key (kbd "d") 'tws-mark-on-the-move-on-line)
       (local-set-key (kbd "l") 'tws-log-to-entry-on-line)
       (local-set-key (kbd "R") 'tws-category-report)
+      (local-set-key (kbd "r") 'tws-rename-entry)
+      (local-set-key (kbd "M") 'tws-recategorize)
       (local-set-key (kbd "v") 'tws-view-entry-on-line)
       (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (local-set-key (kbd "?") 'tws-help-buffer)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-rename-entry ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (setf (tws-goal entry)
+            (read-string "Rename Goal: "))
+      (tws-save-db)
+      (tws-refresh-buffer))))
+
+(defun tws-recategorize ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (setf (tws-category entry)
+            (completing-read "Recategorize: " (tws-categories)))
+      (tws-save-db)
+      (tws-refresh-buffer))))
 
 
 (defun tws-help-buffer ()
@@ -430,6 +450,10 @@ structure of the DB."
       (princ "l        : Add a log message for the highlighted entry")
       (terpri)
       (princ "R        : Show a category report")
+      (terpri)
+      (princ "r        : Rename goal for the highlighted entry")
+      (terpri)
+      (princ "M        : Move the highlighted entry to a different category")
       (terpri)
       (princ "v        : View the detail of the highlighted entry")
       (terpri)
