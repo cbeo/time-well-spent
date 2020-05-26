@@ -409,7 +409,7 @@ structure of the DB."
   (let ((entry (tws-entry-on-line)))
     (when entry
       (setf (tws-category entry)
-            (completing-read "Recategorize: " (tws-categories)))
+            (completing-read "Recategorize: " (tws-categories *tws-db*)))
       (tws-save-db)
       (tws-refresh-buffer))))
 
