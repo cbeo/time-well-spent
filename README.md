@@ -1,4 +1,6 @@
 
+## Time Well Spent
+
 Super duper double alpha non-release use-at-your-own-risk version of a
 task tracker for emacs.
 
@@ -18,3 +20,20 @@ start the process.
 Type `?` to see a list of commands.
 
 Depends on [emojify](https://melpa.org/#/emojify) at present.
+
+### How Entries Are Sorted
+
+I'm using a priority sorting that I've dubbed "barski sort" because it
+is loosely based on [this post](http://www.lisperati.com/#!A_Productivity_System_For_Creators) 
+from Conrad Barski.
+
+Essentially, it places entries that are marked as "on the move"
+before entries that are marked as "waiting", and those are before
+entries marked as "in the future".  
+
+Within those blocks, it puts entries in the least worked on categories
+before entries in th more worked on categories. 
+
+And within a single category, it places the most worked on entry
+before less worked on entries.
+
