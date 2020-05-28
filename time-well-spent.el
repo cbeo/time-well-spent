@@ -537,7 +537,7 @@ categories, in the past DAYS-BACK days"
   (let ((entry (tws-entry-on-line)))
     (when entry
       (tws-mark-incomplete entry)
-      (tws-waiting-on entry "ignore")
+      (tws-waiting-on entry)
       (push (list (current-time)
                   (concat "(Waiting) "
                           (read-string "Reason for Wait: ")))
