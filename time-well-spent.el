@@ -2,53 +2,39 @@
 
 (require 'notifications)
 
-;;; Entry Data Structure and Accessors
-(defun tws-make-entry (goal category &optional estimate)
-  (list 'goal goal
-        'category category
-        'time 0                   ; in seconds
-        'estimate (or estimate 0) ; in hours
-        'completed nil            ; t or nil or 
-        'created nil              ; a time like (curren-time)
-        'last-touched nil         ; nil or a time like (current-time)
-        'status 'in-the-future    ; 'in-the-future, 'on-the-move or 'waiting
-        'id nil
-        'log nil))
+(defstruct tws-entry
+  goal
+  category
+  (time 0)
+  (estimate 0)
+  (completed nil)
+  (created nil)
+  (last-touched nil)
+  (status 'in-the-future)
+  (id nil)
+  (log nil))
 
-(defun tws-accessor-forms (prop)
-  (let ((fname (intern (concat "tws-" (symbol-name prop)))))
-    (list 'progn
-          `(defun ,fname (entry) (getf entry ',prop))
-          `(gv-define-setter ,fname (val entry)
-             (list 'setf (list 'getf entry '',prop) val)))))
 
-(defmacro def-tws-accessors (&rest props)
-  (cons 'progn (mapcar #'tws-accessor-forms props)))
-
-(def-tws-accessors goal category time estimate completed created last-touched status id log)
-
-(defun tws-waiting-on (entry reason)
-  (setf (tws-status entry) 'waiting))
+(defun tws-waiting-on (entry)
+  (setf (tws-entry-status entry) 'waiting))
 
 (defun tws-mark-incomplete (entry)
-  (setf (tws-completed entry) nil))
+  (setf (tws-entry-completed entry) nil))
 
 (defun tws-mark-complete (entry)
-  (setf (tws-completed entry) t))
+  (setf (tws-entry-completed entry) t))
 
 (defun tws-make-on-the-move (entry)
-  (setf (tws-status entry) 'on-the-move))
+  (setf (tws-entry-status entry) 'on-the-move))
 
 (defun tws-make-in-the-future (entry)
-  (setf (tws-status entry) 'in-the-future))
+  (setf (tws-entry-status entry) 'in-the-future))
 
 (defun tws-touch-entry (entry)
-  (setf (tws-last-touched entry) (current-time)))
+  (setf (tws-entry-last-touched entry) (current-time)))
 
 (defun tws-add-time (entry secs)
-  (setf (tws-time entry)
-        (+ (tws-time entry)
-           secs)))
+  (incf (tws-entry-time entry) secs))
 
 (defvar *tws-on-the-move-str* "🚀")
 (defvar *tws-in-the-future-str* "🤔")
@@ -68,7 +54,7 @@
 
 
 (defun tws-status-icon (entry)
-  (case (tws-status entry)
+  (case (tws-entry-status entry)
     ('on-the-move *tws-on-the-move-str*)
     ('in-the-future *tws-in-the-future-str*)
     ('waiting *tws-waiting-str*)))
@@ -81,13 +67,13 @@
 
 (defun tws-entry-to-string (entry &optional working-p)
   (format *tws-entry-format-string*
-          (truncate-string-to-width (tws-goal entry) 35)
-          (truncate-string-to-width (tws-category entry) 25)
-          (truncate  (tws-estimate entry))
+          (truncate-string-to-width (tws-entry-goal entry) 35)
+          (truncate-string-to-width (tws-entry-category entry) 25)
+          (truncate  (tws-entry-estimate entry))
           (tws-status-icon entry)
-          (tws-time-to-hh-mm (tws-time entry))
+          (tws-time-to-hh-mm (tws-entry-time entry))
           (if working-p *tws-in-progress-icon*
-            (if (tws-completed entry)  *tws-goal-reached-icon* " "))))
+            (if (tws-entry-completed entry)  *tws-goal-reached-icon* " "))))
 
 ;;; Utilities
 (defun tws-print-to-file (file form)
@@ -128,7 +114,7 @@
             (cdr (tws-db-working-entry db)))))
 
 (defun tws-lookup-entry (db entry-id)
-  (find-if (tws-query 'eql 'tws-id entry-id)
+  (find-if (tws-query 'eql 'tws-entry-id entry-id)
            (tws-db-entries db)))
 
 (defun tws-stop-working (db)
@@ -153,7 +139,7 @@ corresponding entry's new time."
   (tws-make-on-the-move entry)
   (tws-mark-incomplete entry)
   (tws-touch-entry entry)
-  (setf (third db) (cons (current-time) (tws-id entry))))
+  (setf (third db) (cons (current-time) (tws-entry-id entry))))
 
 (defun tws-raw-insert-entry-into-db (entry db)
   "Performs no checks. Includes a entry into the DB. Meant to be
@@ -164,7 +150,7 @@ structure of the DB."
 (defun tws-delete-entry (id db)
   "Removes the entry with the provided Id from the database."
   (setf (second db)
-        (delete-if (lambda (entry) (equal id (tws-id entry)))
+        (delete-if (lambda (entry) (equal id (tws-entry-id entry)))
                    (second db))))
 
 (defun tws-run-query (pred db)
@@ -174,9 +160,9 @@ structure of the DB."
   "Supply DB is either a db instance or is a list of entires. If
 it is a list of entries, you must supply non-nill for ENTRIES-P."
   (let ((tab (make-hash-table :test 'equal)))
-    (dolist (entry (if entries-p db  (tws-db-entries db)))
-      (incf (gethash (tws-category entry) tab 0) (tws-time entry)))
-    tab))
+    (dolist (entry (if entries-p db (tws-db-entries db)) tab)
+      (incf (gethash (tws-entry-category entry) tab 0)
+            (or  (tws-entry-time entry) 0)))))
 
 (defun tws-categories (db)
   (hash-table-keys (tws-categories-and-times db)))
@@ -224,9 +210,9 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defun tws-add-entry (entry)
   ;; if the entry has an id, remove any entrys in the db with the same
   ;; id, otherwise give the entry an id.
-  (if (tws-id entry)
-      (tws-delete-entry (tws-id entry) *tws-db*)
-      (setf (tws-id entry) (tws-new-entry-id *tws-db*)))
+  (if (tws-entry-id entry)
+      (tws-delete-entry (tws-entry-id entry) *tws-db*)
+      (setf (tws-entry-id entry) (tws-new-entry-id *tws-db*)))
   ;; then push it to into the db
   (tws-raw-insert-entry-into-db entry *tws-db*))
 
@@ -238,22 +224,22 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 (defun tws-stop-idle-timer ()
   (when *tws-idle-timer-handle*
-    (cancel-timer *tws-idle-timer-handle*)
-    (setq *tws-idle-timer-handle* nil)))
+    (cancel-timer *tws-idle-timer-handle*))
+  (setq *tws-idle-timer-handle* nil))
 
 (defun tws-start-idle-timer ()
   (setq *tws-idle-timer-handle*
         (run-with-idle-timer *tws-idle-timeout*
-                             t
+                             nil
                              'tws-notify-and-stop)))
 
 (defun tws-notify-and-stop ()
   (tws-stop-working *tws-db*)
   (tws-save-db)
-  (tws-stop-idle-timer)
   (notifications-notify :title "Time Well Spent"
                         :body "Tracking Has Stopped Due to Idleness"
                         :timeout 0)
+  (setq *tws-idle-timer-handle* nil)
   (tws-refresh-buffer))
 
 ;;; TWS Buffer & Commands
@@ -268,41 +254,38 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defvar *tws-show-category* nil)
 
 
-
-;(defun tws-true (entry) t)
-
 (defun tws-build-filter ()
   (let ((filter (lambda (entry) t)))
     (when *tws-show-category*
-      (setq filter (tws-and filter (tws-query 'equal 'tws-category *tws-show-category*))))
+      (setq filter (tws-and filter (tws-query 'equal 'tws-entry-category *tws-show-category*))))
     (unless *tws-show-future*
-      (setq filter (tws-and filter (tws-not (tws-query 'equal 'tws-status 'in-the-future)))))
+      (setq filter (tws-and filter (tws-not (tws-query 'equal 'tws-entry-status 'in-the-future)))))
     (unless *tws-show-complete-also*
-      (setq filter (tws-and filter (tws-query 'equal 'tws-completed nil))))
+      (setq filter (tws-and filter (tws-query 'equal 'tws-entry-completed nil))))
     filter))
 
 
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
-  (let ((cats (tws-categories-and-times *tws-db*)))
+  (let ((cats (tws-categories-and-times entries t)))
     (labels ((same-cat-p (a b)
-                         (equal (tws-category a) (tws-category b)))
+                         (equal (tws-entry-category a) (tws-entry-category b)))
 
              (active-p (a)
-                       (and (not (tws-completed a))
-                            (equal 'on-the-move (tws-status a))))
+                       (and (not (tws-entry-completed a))
+                            (equal 'on-the-move (tws-entry-status a))))
 
              (both-active (a b) (and (active-p a) (active-p b)))
              
              (cat-lt-p (a b)
-                       (< (gethash (tws-category a) cats 0)
-                          (gethash (tws-category b) cats 0)))
+                       (< (gethash (tws-entry-category a) cats 0)
+                          (gethash (tws-entry-category b) cats 0)))
 
              (more-worked-p (a b)
-                            (> (tws-time a) (tws-time b)))
+                            (> (tws-entry-time a) (tws-entry-time b)))
 
              (waiting-before-future-p (a b)
-                                      (equal 'waiting (tws-status a)))
+                                      (equal 'waiting (tws-entry-status a)))
 
              (most-in-least (a b)
                             (cond ((both-active a b)
@@ -353,14 +336,11 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
       (time-well-spent-mode)
       (hl-line-mode)
 
-      
-
-      
       (dolist (entry *tws-displayed-entries*)
         (princ (tws-entry-to-string entry
                                     (tws-currently-working-on-p
                                      *tws-db*
-                                     (tws-id entry))))
+                                     (tws-entry-id entry))))
         (terpri))
 
       (read-only-mode)
@@ -384,15 +364,15 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
       (local-set-key (kbd "v") 'tws-view-entry-on-line)
       (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (local-set-key (kbd "?") 'tws-help-buffer)
-      (local-set-key (kbd "a") 'tws-add-time)
+      (local-set-key (kbd "a") 'tws-add-time-to-entry-on-line)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
 
-(defun tws-add-time ()
+(defun tws-add-time-to-entry-on-line ()
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (incf (tws-time entry)
+      (incf (tws-entry-time entry)
             (* 3600 (read-number "Add Hours: ")))
       (tws-save-db)
       (tws-refresh-buffer))))
@@ -401,7 +381,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (setf (tws-goal entry)
+      (setf (tws-entry-goal entry)
             (read-string "Rename Goal: "))
       (tws-save-db)
       (tws-refresh-buffer))))
@@ -410,8 +390,8 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (setf (tws-category entry)
-            (completing-read "Recategorize: " (tws-categories *tws-db*)))
+      (setf (tws-entry-category entry)
+            (completing-read "Recategorize: " (tws-entry-categories *tws-db*)))
       (tws-save-db)
       (tws-refresh-buffer))))
 
@@ -495,14 +475,14 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
           (newline)
           (princ (string-trim (tws-entry-to-string entry)))
           (newline) (newline)
-          (princ (format "Created: %s" (current-time-string (tws-created entry))))
+          (princ (format "Created: %s" (current-time-string (tws-entry-created entry))))
           (terpri)
-          (princ (format "Last Touched: %s" (current-time-string (tws-last-touched entry))))
+          (princ (format "Last Touched: %s" (current-time-string (tws-entry-last-touched entry))))
           (newline) (newline)
-          (when (tws-log entry)
+          (when (tws-entry-log entry)
             (princ "LOG")
             (terpri)
-            (dolist (lentry (tws-log entry))
+            (dolist (lentry (tws-entry-log entry))
               (princ (format "%s -- %s"
                              (current-time-string (first lentry))
                              (second lentry)))
@@ -521,7 +501,7 @@ categories, in the past DAYS-BACK days"
               (tws-run-query
                (tws-not
                 (tws-query 'time-less-p
-                           'tws-last-touched
+                           'tws-entry-last-touched
                            (tws-days-ago days-back)))
                *tws-db*)
               t)
@@ -549,7 +529,7 @@ categories, in the past DAYS-BACK days"
   (let ((entry (tws-entry-on-line)))
     (when entry
       (push (list (current-time) (read-string "Log Thought: "))
-            (tws-log entry))
+            (tws-entry-log entry))
       (tws-save-db))))
 
 (defun tws-mark-waiting-on-line ()
@@ -561,7 +541,7 @@ categories, in the past DAYS-BACK days"
       (push (list (current-time)
                   (concat "(Waiting) "
                           (read-string "Reason for Wait: ")))
-            (tws-log entry))
+            (tws-entry-log entry))
       (tws-save-db)
       (tws-refresh-buffer))))
 
@@ -585,9 +565,9 @@ categories, in the past DAYS-BACK days"
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (setf (tws-completed entry)
-            (not (tws-completed entry)))
-      (if (tws-completed entry)
+      (setf (tws-entry-completed entry)
+            (not (tws-entry-completed entry)))
+      (if (tws-entry-completed entry)
           (tws-make-on-the-move entry))
       (tws-refresh-buffer))))
 
@@ -606,7 +586,7 @@ the *tws-displayed-entries* list."
   (let ((entry (tws-entry-on-line)))
     (when entry
       ;; if already showing a category, then clear it, otherwise show a category
-      (setq *tws-show-category* (if *tws-show-category* nil (tws-category entry)))
+      (setq *tws-show-category* (if *tws-show-category* nil (tws-entry-category entry)))
       (tws-refresh-buffer))))
 
 (defun tws-create-entry (category goal estimated)
@@ -614,8 +594,10 @@ the *tws-displayed-entries* list."
    (list (completing-read "Category: " (cons "No Category" (tws-categories *tws-db*)))
          (read-string "Goal: ")
          (read-number "Estimated Hours: ")))
-  (let ((entry (tws-make-entry goal category estimated)))
-    (setf (tws-created entry) (current-time))
+  (let ((entry (make-tws-entry :goal goal
+                               :category category
+                               :estimate estimated
+                               :created (current-time))))
     (tws-add-entry entry)
     (tws-refresh-buffer)))
 
@@ -629,7 +611,7 @@ the *tws-displayed-entries* list."
   (interactive)
   (let ((entry-on-line (tws-entry-on-line)))
     (when entry-on-line
-      (if (tws-currently-working-on-p *tws-db* (tws-id entry-on-line))
+      (if (tws-currently-working-on-p *tws-db* (tws-entry-id entry-on-line))
           (tws-stop)
         (progn
           (tws-stop)
