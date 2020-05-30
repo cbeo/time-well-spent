@@ -491,21 +491,12 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
           (read-only-mode)))
       (switch-to-buffer-other-window *tws-view-entry-buffer-name*))))
 
-(defun tws-category-report (days-back)
+(defun tws-category-report ()
   "Show a report of how much time has been spent on which
 categories, in the past DAYS-BACK days"
-  (interactive (list (read-number "Days Back To Start From (0 = all time): " 0)))
-  (let ((cats
-         (if (plusp days-back)
-             (tws-categories-and-times
-              (tws-run-query
-               (tws-not
-                (tws-query 'time-less-p
-                           'tws-entry-last-touched
-                           (tws-days-ago days-back)))
-               *tws-db*)
-              t)
-           (tws-categories-and-times  *tws-db*))))
+  (interactive ())
+  (let ((cats (tws-categories-and-times  *tws-db*)
+              ))
     (with-output-to-temp-buffer "Time Well Spent: Report"
       (princ "   TIME WELL SPENT : CATEGORY REPORT")
       (terpri)
