@@ -27,18 +27,29 @@
 (defun tws-invalidate-total-cache (entry)
   (remhash (tws-entry-id entry) *tws-time-total-cache*))
 
-(defun tws-total-time (entry &optional after-time)
+(defun tws-total-time (entry &optional start-time)
   "gets the total time worked on entry"
-  (if (gethash (tws-entry-id entry) *tws-time-total-cache*)
-      (gethash (tws-entry-id entry) *tws-time-total-cache*)      
-    (setf (gethash (tws-entry-id entry) *tws-time-total-cache*)
-          (reduce (lambda (acc time)
-                    (+ acc
-                       (if (numberp time) time
-                         (float-time
-                          (subtract-time (car time) (cdr time))))))
-                  (tws-correct-time entry)
-                  :initial-value 0))))
+  (if start-time
+      (let (switch)
+        (reduce (lambda (acc time)
+                  (+ acc (cond (switch 0)             ; ignore everything before the star-time
+                               ((numberp time) time)
+                               ((time-less-p start-time (cdr time))
+                                (subtract-time (car time) (cdr time)))
+                               (t (setf switch t)
+                                  0))))
+                (tws-correct-time entry)
+                :initial-value 0))
+    (if (gethash (tws-entry-id entry) *tws-time-total-cache*)
+        (gethash (tws-entry-id entry) *tws-time-total-cache*)      
+      (setf (gethash (tws-entry-id entry) *tws-time-total-cache*)
+            (reduce (lambda (acc time)
+                      (+ acc
+                         (if (numberp time) time
+                           (float-time
+                            (subtract-time (car time) (cdr time))))))
+                    (tws-correct-time entry)
+                    :initial-value 0)))))
 
 (defun tws-waiting-on (entry)
   (setf (tws-entry-status entry) 'waiting))
@@ -517,12 +528,13 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
           (read-only-mode)))
       (switch-to-buffer-other-window *tws-view-entry-buffer-name*))))
 
-(defun tws-category-report ()
+(defun tws-category-report (days-back)
   "Show a report of how much time has been spent on which
 categories, in the past DAYS-BACK days"
-  (interactive ())
-  (let ((cats (tws-categories-and-times  *tws-db*)
-              ))
+  (interactive (list (read-number "Days Back To Start From (0 = all): " 0)))
+  (let ((cats (if (plusp days-back)
+                  (tws-categories-and-times *tws-db* nil (tws-days-ago days-back))
+                (tws-categories-and-times  *tws-db*))))
     (with-output-to-temp-buffer "Time Well Spent: Report"
       (princ "   TIME WELL SPENT : CATEGORY REPORT")
       (terpri)
