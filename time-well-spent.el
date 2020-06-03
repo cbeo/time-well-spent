@@ -5,7 +5,7 @@
 (defstruct tws-entry
   goal
   category
-  (time 0)
+  (time nil)        ;; a list whose elements are numbers or pairs of numbers
   (estimate 0)
   (completed nil)
   (created nil)
@@ -14,6 +14,31 @@
   (id nil)
   (log nil))
 
+(defun tws-correct-time (entry)
+  "returns the time, possibly transforming into the the correct format first"
+  (when (numberp (tws-entry-time entry))
+    (setf (tws-entry-time entry)
+          (list (tws-entry-time entry))))
+  (tws-entry-time entry))
+
+(defvar *tws-time-total-cache* (make-hash-table)
+  "In-memory cache of entry time totals.")
+
+(defun tws-invalidate-total-cache (entry)
+  (remhash (tws-entry-id entry) *tws-time-total-cache*))
+
+(defun tws-total-time (entry &optional after-time)
+  "gets the total time worked on entry"
+  (if (gethash (tws-entry-id entry) *tws-time-total-cache*)
+      (gethash (tws-entry-id entry) *tws-time-total-cache*)      
+    (setf (gethash (tws-entry-id entry) *tws-time-total-cache*)
+          (reduce (lambda (acc time)
+                    (+ acc
+                       (if (numberp time) time
+                         (float-time
+                          (subtract-time (car time) (cdr time))))))
+                  (tws-correct-time entry)
+                  :initial-value 0))))
 
 (defun tws-waiting-on (entry)
   (setf (tws-entry-status entry) 'waiting))
@@ -31,10 +56,13 @@
   (setf (tws-entry-status entry) 'in-the-future))
 
 (defun tws-touch-entry (entry)
+  (tws-invalidate-total-cache entry)
   (setf (tws-entry-last-touched entry) (current-time)))
 
 (defun tws-add-time (entry secs)
-  (incf (tws-entry-time entry) secs))
+  (tws-correct-time entry)
+  (tws-touch-entry entry)
+  (push secs (tws-entry-time entry)))
 
 (defvar *tws-on-the-move-str* "🚀")
 (defvar *tws-in-the-future-str* "🤔")
@@ -71,7 +99,7 @@
           (truncate-string-to-width (tws-entry-category entry) 25)
           (truncate  (tws-entry-estimate entry))
           (tws-status-icon entry)
-          (tws-time-to-hh-mm (tws-entry-time entry))
+          (tws-time-to-hh-mm (tws-total-time entry))
           (if working-p *tws-in-progress-icon*
             (if (tws-entry-completed entry)  *tws-goal-reached-icon* " "))))
 
@@ -122,14 +150,13 @@
 corresponding entry's new time."
   (when (tws-db-working-entry db)
     (let* ((entry-id (cdr (tws-db-working-entry db)))
-           (start-time (float-time (car (tws-db-working-entry db))))
+           (start-time  (car (tws-db-working-entry db)))
            (entry (tws-lookup-entry db entry-id))
-           (now (float-time (current-time))))
+           (now  (current-time)))
       ;; clear the working-entry
       (setf (third db) nil)
       ;; update the entry with new times
-      (tws-add-time entry (- now start-time))
-      (tws-touch-entry entry))))
+      (tws-add-time entry (cons now start-time)))))
 
 (defun tws-work-on (db entry)
   "Start working on entry with id ENTRY-ID."
@@ -156,13 +183,13 @@ structure of the DB."
 (defun tws-run-query (pred db)
   (remove-if-not pred (tws-db-entries db)))
 
-(defun tws-categories-and-times (db &optional entries-p)
+(defun tws-categories-and-times (db &optional entries-p after-time)
   "Supply DB is either a db instance or is a list of entires. If
 it is a list of entries, you must supply non-nill for ENTRIES-P."
   (let ((tab (make-hash-table :test 'equal)))
     (dolist (entry (if entries-p db (tws-db-entries db)) tab)
       (incf (gethash (tws-entry-category entry) tab 0)
-            (or  (tws-entry-time entry) 0)))))
+            (or  (tws-total-time entry after-time) 0)))))
 
 (defun tws-categories (db)
   (hash-table-keys (tws-categories-and-times db)))
@@ -219,7 +246,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 ;;; Timers 
 
-(defvar *tws-idle-timeout* (* 5 60))
+(defvar *tws-idle-timeout* (* 10 60))
 (defvar *tws-idle-timer-handle* nil)
 
 (defun tws-stop-idle-timer ()
@@ -282,7 +309,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
                           (gethash (tws-entry-category b) cats 0)))
 
              (more-worked-p (a b)
-                            (> (tws-entry-time a) (tws-entry-time b)))
+                            (> (tws-total-time a) (tws-total-time b)))
 
              (waiting-before-future-p (a b)
                                       (equal 'waiting (tws-entry-status a)))
@@ -372,8 +399,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (incf (tws-entry-time entry)
-            (* 3600 (read-number "Add Hours: ")))
+      (tws-add-time entry (* 3600 (read-number "Add Hours: ")) )
       (tws-save-db)
       (tws-refresh-buffer))))
 
