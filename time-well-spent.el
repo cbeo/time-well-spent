@@ -35,7 +35,7 @@
                   (+ acc (cond (switch 0)             ; ignore everything before the star-time
                                ((numberp time) time)
                                ((time-less-p start-time (cdr time))
-                                (subtract-time (car time) (cdr time)))
+                                (float-time (subtract-time (car time) (cdr time))))
                                (t (setf switch t)
                                   0))))
                 (tws-correct-time entry)
