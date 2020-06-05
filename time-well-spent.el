@@ -428,7 +428,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (let ((entry (tws-entry-on-line)))
     (when entry
       (setf (tws-entry-category entry)
-            (completing-read "Recategorize: " (tws-entry-categories *tws-db*)))
+            (completing-read "Recategorize: " (tws-categories *tws-db*)))
       (tws-save-db)
       (tws-refresh-buffer))))
 
