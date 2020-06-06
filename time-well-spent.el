@@ -290,7 +290,9 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defvar *tws-show-complete-also* nil)
 (defvar *tws-show-future* t)
 (defvar *tws-show-category* nil)
+(defvar *tws-show-goal-with-substring* nil)
 
+(defun flipped-search (s1 s2) (search (downcase s2) (downcase s1)))
 
 (defun tws-build-filter ()
   (let ((filter (lambda (entry) t)))
@@ -300,6 +302,10 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
       (setq filter (tws-and filter (tws-not (tws-query 'equal 'tws-entry-status 'in-the-future)))))
     (unless *tws-show-complete-also*
       (setq filter (tws-and filter (tws-query 'equal 'tws-entry-completed nil))))
+    (when *tws-show-goal-with-substring*
+      (setq filter (tws-and filter (tws-query 'flipped-search
+                                              'tws-entry-goal
+                                              *tws-show-goal-with-substring*))))
     filter))
 
 
@@ -403,8 +409,14 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
       (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (local-set-key (kbd "?") 'tws-help-buffer)
       (local-set-key (kbd "a") 'tws-add-time-to-entry-on-line)
+      (local-set-key (kbd "/") 'tws-filter-goals)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
+
+(defun tws-filter-goals (goal)
+  (interactive "sFilter string: ")
+  (setq *tws-show-goal-with-substring* goal)
+  (tws-refresh-buffer))
 
 (defun tws-add-time-to-entry-on-line ()
   (interactive)
