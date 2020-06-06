@@ -409,6 +409,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
       (local-set-key (kbd "q") 'tws-kill-current-buffer)
       (local-set-key (kbd "?") 'tws-help-buffer)
       (local-set-key (kbd "a") 'tws-add-time-to-entry-on-line)
+      (local-set-key (kbd "x") 'tws-delete-entry-on-line)
       (local-set-key (kbd "/") 'tws-filter-goals)
       (switch-to-buffer *tws-buffer-name*)))
   (goto-char *tws-last-known-point*))
@@ -424,6 +425,13 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
     (when entry
       (tws-add-time entry (* 3600 (read-number "Add Hours: ")) )
       (tws-save-db)
+      (tws-refresh-buffer))))
+
+(defun tws-delete-entry-on-line ()
+  (interactive)
+  (let ((entry (tws-entry-on-line)))
+    (when entry
+      (tws-delete-entry (tws-entry-id entry) *tws-db*)
       (tws-refresh-buffer))))
 
 (defun tws-rename-entry ()
