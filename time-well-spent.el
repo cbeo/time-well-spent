@@ -364,6 +364,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (setq *tws-show-category* nil)
   (setq *tws-show-future* t)
   (setq *tws-show-complete-also* nil)
+  (setq *tws-show-goal-with-substring* nil)
   (tws-refresh-buffer))
 
 (define-derived-mode time-well-spent-mode fundamental-mode "tws")
