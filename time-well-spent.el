@@ -518,6 +518,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 (defun tws-kill-current-buffer ()
   (interactive)
+  (tws-save-db)
   (kill-buffer (current-buffer)))
 
 (defvar *tws-view-entry-buffer-name* "Time Well Spent: Entry View")
