@@ -583,11 +583,12 @@ categories, in the past DAYS-BACK days"
       (terpri)
       (let ((total 0))
         (dolist (key (hash-table-keys cats))
-          (princ (format "%25s -- %s"
-                         key
-                         (tws-time-to-hh-mm (gethash key cats 0))))
-          (terpri)
-          (incf total (gethash key cats 0)))
+          (when (plusp (gethash key cats 0))
+            (princ (format "%25s -- %s"
+                           key
+                           (tws-time-to-hh-mm (gethash key cats 0))))
+            (terpri)
+            (incf total (gethash key cats 0))))
         (princ "----------------------------------------")
         (terpri)
         (princ (format "%25s -- %s" "TOTAL" (tws-time-to-hh-mm total)))
