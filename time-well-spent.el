@@ -660,11 +660,12 @@ the *tws-displayed-entries* list."
       (setq *tws-show-category* (if *tws-show-category* nil (tws-entry-category entry)))
       (tws-refresh-buffer))))
 
-(defun tws-create-entry (category goal estimated)
+(defun tws-create-entry (goal category estimated)
   (interactive
-   (list (completing-read "Category: " (cons "No Category" (tws-categories *tws-db*)))
-         (read-string "Goal: ")
-         (read-number "Estimated Hours: ")))
+   (list 
+    (read-string "Goal: ")
+    (completing-read "Category: " (tws-categories *tws-db*))
+    (read-number "Estimated Hours: ")))
   (let ((entry (make-tws-entry :goal goal
                                :category category
                                :estimate estimated
