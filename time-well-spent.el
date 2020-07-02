@@ -311,7 +311,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
-  (let ((cats (tws-categories-and-times entries t)))
+  (let ((cats (tws-categories-and-times (tws-db-entries *tws-db*) t)))
     (labels ((same-cat-p (a b)
                          (equal (tws-entry-category a) (tws-entry-category b)))
 
