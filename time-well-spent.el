@@ -10,7 +10,7 @@
   (completed nil)
   (created nil)
   (last-touched nil)
-  (status 'in-the-future)
+  (status 'on-the-move)
   (id nil)
   (log nil))
 
