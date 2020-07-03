@@ -219,6 +219,15 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
                          (rec (cdr preds))))))
       (rec preds))))
 
+(defun tws-midnight-today ()
+  (let ((parts (split-string (current-time-string))))
+    (setf (fourth parts) "00:00:00")
+    (date-to-time (string-join parts " "))))
+
+(defun tws-hours-since-midnight ()
+  (/ (float-time (subtract-time (current-time) (tws-midnight-today)))
+     (* 60 60)))
+
 (defun tws-days-ago (days)
   (- (float-time (current-time))
      (* days 24 60 60)))
@@ -572,17 +581,21 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defun tws-category-report (days-back)
   "Show a report of how much time has been spent on which
 categories, in the past DAYS-BACK days"
-  (interactive (list (read-number "Days Back To Start From (0 = all): " 0)))
-  (let ((cats (if (plusp days-back)
-                  (tws-categories-and-times *tws-db* nil (tws-days-ago days-back))
-                (tws-categories-and-times  *tws-db*))))
-    (with-output-to-temp-buffer "Time Well Spent: Report"
-      (princ "TIME WELL SPENT - CATEGORY REPORT")
-      (if (zerop days-back)
-          (princ " [all time]")
-          (progn
-            (princ " [last ") (princ  days-back) (princ " days]")))
+  (interactive (list (read-number "Days Back To Start From (0 = today): " 0)))
+  (when (zerop days-back)
+    (setq days-back (/  (tws-hours-since-midnight) 24)))
 
+  (let ((cats (tws-categories-and-times *tws-db* nil (tws-days-ago days-back))))
+    (with-output-to-temp-buffer "Time Well Spent: Report"
+
+      (princ "TIME WELL SPENT - CATEGORY REPORT")
+
+      (if (<= 1.0 days-back)
+          (progn (princ " [last ")
+                 (princ  days-back)
+                 (princ " days]"))
+        (princ " [today]"))
+      
       (terpri)
       (princ "----------------------------------------")
       (terpri)
