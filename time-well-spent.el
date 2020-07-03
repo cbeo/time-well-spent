@@ -577,7 +577,12 @@ categories, in the past DAYS-BACK days"
                   (tws-categories-and-times *tws-db* nil (tws-days-ago days-back))
                 (tws-categories-and-times  *tws-db*))))
     (with-output-to-temp-buffer "Time Well Spent: Report"
-      (princ "   TIME WELL SPENT : CATEGORY REPORT")
+      (princ "TIME WELL SPENT - CATEGORY REPORT")
+      (if (zerop days-back)
+          (princ " [all time]")
+          (progn
+            (princ " [last ") (princ  days-back) (princ " days]")))
+
       (terpri)
       (princ "----------------------------------------")
       (terpri)
