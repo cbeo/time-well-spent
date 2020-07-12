@@ -433,7 +433,13 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
   (interactive)
   (let ((entry (tws-entry-on-line)))
     (when entry
-      (tws-add-time entry (* 3600 (read-number "Add Hours: ")) )
+      (let* ((hours-to-add (* 3600 (read-number "Add Hours: ")))
+             (stop-time
+              (subtract-time (current-time) 
+                             (* 3600 (read-number "How Many Hours Ago Did You Stop? "))))
+             (start-time (subtract-time stop-time hours-to-add)))
+        
+        (tws-add-time entry (cons stop-time start-time) ))
       (tws-save-db)
       (tws-refresh-buffer))))
 
