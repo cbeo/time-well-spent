@@ -70,10 +70,18 @@
   (tws-invalidate-total-cache entry)
   (setf (tws-entry-last-touched entry) (current-time)))
 
-(defun tws-add-time (entry secs)
-  (tws-correct-time entry)
-  (tws-touch-entry entry)
-  (push secs (tws-entry-time entry)))
+
+(defun tws-long-enough-p (period)
+  (let ((secs (if (numberp period) period
+                (float-time (subtract-time (car period) (cdr period))))))
+    (< (+ 10 *tws-idle-timeout*) secs)))
+
+
+(defun tws-add-time (entry period)
+  (when (tws-long-enough-p period)
+    (tws-correct-time entry)
+    (tws-touch-entry entry)
+    (push period (tws-entry-time entry))))
 
 (defvar *tws-on-the-move-str* "🚀")
 (defvar *tws-in-the-future-str* "🤔")
