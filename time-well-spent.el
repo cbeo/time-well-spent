@@ -326,35 +326,63 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
     filter))
 
 
+(defvar *tws-category-priority-groups* '()
+  "Entries are prioaritized by membership in a group. Groups are
+  just lists of categories. Priority is determined by the
+  ordering of the groups in the list.  
+
+  E.g. ((cat1 cat2) (cat3) (cat4)) 
+
+  If a category does not appear in a group, it is considdered to
+  have lowest priority.
+")
+
+(defun tws-category-priority (entry)
+  (let ((cat (tws-entry-category entry)))
+    (position-if (lambda (group) (member cat group)) *tws-category-priority-groups*)))
+
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
   (let ((cats (tws-categories-and-times (tws-db-entries *tws-db*) t)))
     (cl-labels ((same-cat-p (a b)
                          (equal (tws-entry-category a) (tws-entry-category b)))
 
-             (active-p (a)
-                       (and (not (tws-entry-completed a))
-                            (equal 'on-the-move (tws-entry-status a))))
+                (same-cat-group (a b)
+                                (equal (tws-category-priority a)
+                                       (tws-category-priority b)))
 
-             (both-active (a b) (and (active-p a) (active-p b)))
+                (active-p (a)
+                          (and (not (tws-entry-completed a))
+                               (equal 'on-the-move (tws-entry-status a))))
 
-             (cat-lt-p (a b)
-                       (< (gethash (tws-entry-category a) cats 0)
-                          (gethash (tws-entry-category b) cats 0)))
+                (both-active (a b) (and (active-p a) (active-p b)))
 
-             (more-worked-p (a b)
-                            (> (tws-total-time a) (tws-total-time b)))
-
-             (waiting-before-future-p (a b)
-                                      (equal 'waiting (tws-entry-status a)))
-
-             (most-in-least (a b)
-                            (cond ((both-active a b)
-                                   (if (same-cat-p a b) (more-worked-p a b)
-                                     (cat-lt-p a b)))
-                                  ((active-p a) t)
-                                  ((active-p b) nil)
-                                  (t (waiting-before-future-p a b)))))
+                (higher-priority-p (a b)
+                                   (let ((pa (tws-category-priority a))
+                                         (pb (tws-category-priority b)))
+                                     (cond ((and pa pb) (< pa pb))
+                                           (pa t)
+                                           (t nil))))
+             
+                (cat-lt-p (a b)
+                          (< (gethash (tws-entry-category a) cats 0)
+                             (gethash (tws-entry-category b) cats 0)))
+                
+                (more-worked-p (a b)
+                               (> (tws-total-time a) (tws-total-time b)))
+                
+                (waiting-before-future-p (a b)
+                                         (equal 'waiting (tws-entry-status a)))
+                
+                (most-in-least (a b)
+                               (cond ((both-active a b)
+                                      (cond
+                                       ((same-cat-p a b) (more-worked-p a b))
+                                       ((same-cat-group a b) (cat-lt-p a b))
+                                       (t (higher-priority-p a b))))
+                                     ((active-p a) t)
+                                     ((active-p b) nil)
+                                     (t (waiting-before-future-p a b)))))
       (setq entries
             (sort entries (lambda (a b) (most-in-least a b))))
       entries)))
