@@ -482,7 +482,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defun tws-delete-entry-on-line ()
   (interactive)
   (let ((entry (tws-entry-on-line)))
-    (when entry
+    (when (and  entry (y-or-n-p "Really delete this entry?"))
       (tws-delete-entry (tws-entry-id entry) *tws-db*)
       (tws-refresh-buffer))))
 
@@ -679,7 +679,7 @@ categories, in the past DAYS-BACK days"
 (defun tws-toggle-mark-complete-on-line ()
   (interactive)
   (let ((entry (tws-entry-on-line)))
-    (when entry
+    (when (and entry (y-or-n-p "You sure you're finished?"))
       (setf (tws-entry-completed entry)
             (not (tws-entry-completed entry)))
       (if (tws-entry-completed entry)
