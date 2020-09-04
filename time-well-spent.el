@@ -1,6 +1,7 @@
 ;;; -*- lexical-binding: t; -*-
 
 (require 'notifications)
+(require 'cl-lib) 
 
 (cl-defstruct tws-entry
   goal
@@ -229,7 +230,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 (defun tws-midnight-today ()
   (let ((parts (split-string (current-time-string))))
-    (setf (fourth parts) "00:00:00")
+    (setf (cl-fourth parts) "00:00:00")
     (date-to-time (string-join parts " "))))
 
 (defun tws-hours-since-midnight ()
@@ -309,7 +310,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 (defvar *tws-show-category* nil)
 (defvar *tws-show-goal-with-substring* nil)
 
-(defun flipped-search (s1 s2) (search (downcase s2) (downcase s1)))
+(defun flipped-search (s1 s2) (cl-search (downcase s2) (downcase s1)))
 
 (defun tws-build-filter ()
   (let ((filter (lambda (entry) t)))
@@ -339,7 +340,7 @@ it is a list of entries, you must supply non-nill for ENTRIES-P."
 
 (defun tws-category-priority (entry)
   (let ((cat (tws-entry-category entry)))
-    (position-if (lambda (group) (member cat group)) *tws-category-priority-groups*)))
+    (cl-position-if (lambda (group) (member cat group)) *tws-category-priority-groups*)))
 
 (defun tws-sort (entries)
   "Sorts entries in 'barski' order"
