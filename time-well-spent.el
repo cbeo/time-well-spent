@@ -197,7 +197,7 @@ structure of the DB."
 (defun tws-delete-entry (id db)
   "Removes the entry with the provided Id from the database."
   (setf (cl-second db)
-        (delete-if (lambda (entry) (equal id (tws-entry-id entry)))
+        (cl-delete-if (lambda (entry) (equal id (tws-entry-id entry)))
                    (cl-second db))))
 
 (defun tws-run-query (pred db)
